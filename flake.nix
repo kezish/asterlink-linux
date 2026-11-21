@@ -8,7 +8,7 @@
       pkgs = import nixpkgs { inherit system; };
       core = pkgs.mkShell {
         packages = with pkgs; [
-          flutter go cmake ninja pkg-config clang gcc python3 git
+          bflutter341 go cmake ninja pkg-config clang gcc python3 git
         ];
         buildInputs = with pkgs; [ gtk3 libsecret libappindicator-gtk3 ];
         shellHook = ''
