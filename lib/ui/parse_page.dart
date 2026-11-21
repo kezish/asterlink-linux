@@ -813,6 +813,7 @@ class ParsePageState extends State<ParsePage> {
           context,
           widget.services.parserRules,
           e.siteId,
+          services: widget.services,
           resolveUcPassword:
               widget.services.cloud.publicPasswords.fromUcCommand,
         );

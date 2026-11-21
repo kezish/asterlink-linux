@@ -1,12 +1,17 @@
 import 'dart:async';
 import 'dart:math' as math;
 import 'package:flutter/material.dart';
+import 'package:file_selector/file_selector.dart';
 import 'package:flutter/services.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '../app_services.dart';
 import '../core/json.dart';
 import '../data/parser_rules/hub.dart';
 import '../domain/models.dart';
+import '../domain/c139_passcode.dart';
+import '../data/password_sources/mobile_password_archive.dart';
+import '../data/password_sources/mobile_password_guide.dart';
+import 'cloud_command_page.dart';
 import 'common.dart';
 import 'parser_password_web_page.dart';
 import 'announcement_markdown.dart';
@@ -50,6 +55,7 @@ class ParserSitePicker extends StatelessWidget {
                       context,
                       hub,
                       'mf_dg22',
+                      services: services,
                     );
                     if (grant != null && context.mounted) {
                       onPasswordReady?.call(grant);
@@ -193,13 +199,15 @@ Future<String?> showParserPasswordDialog(
   ParserRuleHub hub,
   String siteId, {
   Future<String> Function(String command)? resolveUcPassword,
+  AppServices? services,
 }) async {
   final site = hub.sites.where((s) => s.id == siteId).firstOrNull;
   if (site == null && siteId == 'mf_dg22' && hub.builtinPasswordAvailable) {
     return showDialog<String>(
       context: context,
       barrierDismissible: false,
-      builder: (_) => _BuiltinParserPasswordDialog(hub: hub),
+      builder: (_) =>
+          _BuiltinParserPasswordDialog(hub: hub, services: services),
     );
   }
   if (site == null) {
@@ -221,8 +229,9 @@ Future<String?> showParserPasswordDialog(
 // Deliberately limited to the existing built-in parser with no configured Hub.
 // The original parser still checks the password on the actual list request.
 class _BuiltinParserPasswordDialog extends StatefulWidget {
-  const _BuiltinParserPasswordDialog({required this.hub});
+  const _BuiltinParserPasswordDialog({required this.hub, this.services});
   final ParserRuleHub hub;
+  final AppServices? services;
 
   @override
   State<_BuiltinParserPasswordDialog> createState() =>
@@ -256,9 +265,104 @@ class _BuiltinParserPasswordDialogState
     }
   }
 
+  Future<void> _openGuide() async {
+    try {
+      final opened = await launchUrl(
+        Uri.parse(MobilePasswordGuide.pageUrl),
+        mode: LaunchMode.externalApplication,
+      );
+      if (!opened && mounted) setState(() => error = '无法打开领取说明，请在浏览器中打开');
+    } catch (_) {
+      if (mounted) setState(() => error = '无法打开领取说明，请在浏览器中打开');
+    }
+  }
+
+  Future<void> _readMobileGuide() async {
+    final services = widget.services;
+    if (services == null) return;
+    setState(() {
+      busy = true;
+      error = '';
+    });
+    String? command;
+    try {
+      command = await MobilePasswordGuide(services.cloud.http).read();
+    } catch (_) {
+      if (mounted) setState(() => error = '无法自动读取当前口令，请打开领取说明并复制口令');
+    } finally {
+      if (mounted) setState(() => busy = false);
+    }
+    if (mounted && command != null) {
+      await Navigator.push<void>(
+        context,
+        MaterialPageRoute(
+          builder: (_) => CloudCommandPage(services, initialText: command!),
+        ),
+      );
+    }
+  }
+
+  Future<void> _openMobileCommand() async {
+    final services = widget.services;
+    if (services == null) return;
+    final clipboard =
+        (await Clipboard.getData(Clipboard.kTextPlain))?.text ?? '';
+    if (!mounted) return;
+    final command = C139Passcode.parse(clipboard.trim());
+    if (command == null) {
+      setState(() => error = '请先从领取说明复制当前移动云盘口令');
+      return;
+    }
+    await Navigator.push<void>(
+      context,
+      MaterialPageRoute(
+        builder: (_) =>
+            CloudCommandPage(services, initialText: clipboard.trim()),
+      ),
+    );
+    if (mounted) setState(() => error = '');
+  }
+
+  Future<void> _importArchive() async {
+    setState(() {
+      busy = true;
+      error = '';
+    });
+    try {
+      final file = await openFile(
+        acceptedTypeGroups: const [
+          XTypeGroup(label: '密码 ZIP / TXT', extensions: ['zip', 'txt']),
+        ],
+      );
+      if (file == null || !mounted) return;
+      final limit = file.name.toLowerCase().endsWith('.zip')
+          ? MobilePasswordArchive.maxArchiveBytes
+          : MobilePasswordArchive.maxTextBytes;
+      if (await file.length() > limit) {
+        throw const FormatException('文件大小超出限制');
+      }
+      final bytes = await file.readAsBytes();
+      final value = file.name.toLowerCase().endsWith('.zip')
+          ? MobilePasswordArchive.fromZip(bytes)
+          : MobilePasswordArchive.fromText(bytes);
+      if (mounted) {
+        setState(() {
+          input.text = value;
+        });
+      }
+    } catch (_) {
+      if (mounted) {
+        setState(() => error = '无法读取密码，请选择当天的 ZIP 或 UTF-8 TXT，确认第一行格式');
+      }
+    } finally {
+      if (mounted) setState(() => busy = false);
+    }
+  }
+
   @override
   Widget build(BuildContext context) => AlertDialog(
     title: const Text('百度公益解析 · 手动密码'),
+    scrollable: true,
     content: SizedBox(
       width: 440,
       child: Column(
@@ -290,6 +394,32 @@ class _BuiltinParserPasswordDialogState
                 }
               }
             },
+          ),
+          const Text('移动云盘领取：读取公开说明中的当前口令，登录后按要求转存当天 ZIP，下载后导入。'),
+          Wrap(
+            spacing: 8,
+            children: [
+              TextButton(
+                onPressed: busy ? null : _openGuide,
+                child: const Text('领取说明'),
+              ),
+              if (widget.services != null)
+                TextButton(
+                  onPressed: busy ? null : _readMobileGuide,
+                  child: const Text('读取最新移动口令'),
+                ),
+              if (widget.services != null)
+                TextButton(
+                  onPressed: busy ? null : _openMobileCommand,
+                  child: const Text('解析剪贴板移动口令'),
+                ),
+              TextButton.icon(
+                key: const ValueKey('builtin-parser-password-import'),
+                onPressed: busy ? null : _importArchive,
+                icon: const Icon(Icons.file_open_outlined),
+                label: const Text('导入 ZIP / TXT'),
+              ),
+            ],
           ),
           TextField(
             key: const ValueKey('builtin-parser-password-input'),
