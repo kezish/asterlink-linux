@@ -19,3 +19,20 @@ widget test (1) passed. Static analysis of the two login Dart files passed.
 The native plugin compiled into the Flutter Linux bundle. Real provider login,
 including any verification challenges, still requires interactive user testing.
 The plugin is not yet integrated into browser-assisted search or other providers.
+
+## Hybrid GPU / Wayland render fallback
+
+On dawn16 with WebKitGTK 2.54.2 the native login window opened but was
+blank, with `Failed to create EGL image from DMABuf`. The public provider
+page returned HTTP 200. The runner now defaults to
+`WEBKIT_DMABUF_RENDERER_FORCE_SHM=1` before GTK initialization, unless a
+caller supplies an explicit WebKit renderer override. This keeps WebKit
+shared-memory transport available and avoids disabling the entire backing store.
+Use `nix develop .#full --command bash tool/run-linux.sh` for the existing
+bundle too. To compare the default renderer, explicitly set
+`WEBKIT_DMABUF_RENDERER_FORCE_SHM=0`. If necessary, test `GDK_BACKEND=x11`
+with shared-memory mode. No global graphics driver or desktop setting is changed.
+See https://bugs.webkit.org/show_bug.cgi?id=324730 and
+https://bugs.webkit.org/show_bug.cgi?id=324551 for related WebKitGTK issues.
+Actual visible rendering of the provider login window requires interactive
+confirmation on the affected desktop.
