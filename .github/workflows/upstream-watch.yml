@@ -1,0 +1,63 @@
+name: Track upstream AsterLink releases
+
+on:
+  schedule:
+    - cron: '21 2 * * *'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  issues: write
+
+jobs:
+  check:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Compare upstream releases and open a traceable issue
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          git remote add upstream https://github.com/z7786/wenxi.git || true
+          git fetch upstream main --tags --quiet
+          latest="$(git tag -l 'v*' --sort=-version:refname | head -1)"
+          if [[ -z "$latest" ]]; then
+            echo "No upstream release tag found" >&2
+            exit 1
+          fi
+          printf 'Upstream latest release: %s\n' "$latest"
+          if git merge-base --is-ancestor "$latest" HEAD; then
+            echo "Current branch already includes upstream release $latest"
+            exit 0
+          fi
+          if [[ "$(gh issue list --state open --search "in:title $latest" --json number --jq 'length')" != 0 ]]; then
+            echo "An open tracking issue already mentions $latest"
+            exit 0
+          fi
+          baseline="$(git describe --tags --abbrev=0 HEAD)"
+          {
+            echo "Upstream release: $latest"
+            echo "Linux baseline: $baseline"
+            echo "Linux HEAD: $(git rev-parse HEAD)"
+            echo "Upstream tag HEAD: $(git rev-parse "$latest")"
+            echo
+            echo "Review before merging; preserve each Linux platform patch."
+            echo
+            echo 'Parser/search changed paths:'
+            echo '~~~'
+            git diff --stat "$baseline" "$latest" -- \
+              lib/data/providers lib/data/parser_rules \
+              lib/data/client_search_engine.dart lib/data/client_search_host.dart \
+              lib/data/resource_search_api.dart lib/data/sources \
+              vendor_plugins/asterlink_js pubspec.yaml || true
+            echo '~~~'
+            echo
+            echo "Required gates: QuickJS, offline parser fixtures, search adapters, Linux build, live smoke tests."
+          } > upstream-report.md
+          gh issue create --title "Upstream release $latest: parser/search compatibility review" --body-file upstream-report.md
+          cat upstream-report.md >> "$GITHUB_STEP_SUMMARY"
