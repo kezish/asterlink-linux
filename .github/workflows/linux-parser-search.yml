@@ -33,6 +33,35 @@ jobs:
         run: |
           ASTERLINK_JS_LIBRARY="$PWD/build/quickjs-native/libasterlink_js.so" flutter test test/client_search_test.dart --plain-name 'encrypted disk cache survives process restart with all networks offline'
 
+  linux-bundle:
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version: '1.24.7'
+          cache: true
+          cache-dependency-path: native/gopeed/go.sum
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: '3.41.9'
+          channel: stable
+          cache: true
+      - name: Install Linux Flutter / mpv / WebKit development libraries
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y cmake pkg-config ninja-build libgtk-3-dev libsecret-1-dev libwebkit2gtk-4.1-dev libmpv-dev libass-dev libayatana-appindicator3-dev
+      - name: Build AsterLink and Gopeed Linux bundle
+        run: bash tool/build-linux.sh
+      - uses: actions/upload-artifact@v4
+        with:
+          name: asterlink-linux-x64-${{ github.sha }}
+          path: build/linux/x64/release/bundle/
+          if-no-files-found: error
+          retention-days: 7
+
   upstream-watch:
     if: github.event_name == 'workflow_dispatch'
     runs-on: ubuntu-24.04

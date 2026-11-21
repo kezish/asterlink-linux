@@ -67,7 +67,7 @@ The local branch can be published when a new remote exists.
 
 For launching inside an existing graphical login shell:
 
-    export LD_LIBRARY_PATH="$PWD/build/linux/x64/release/bundle/lib:\${LD_LIBRARY_PATH:-}"
+    export LD_LIBRARY_PATH="$PWD/build/linux/x64/release/bundle/lib:${LD_LIBRARY_PATH:-}"
     ./build/linux/x64/release/bundle/asterlink
 
 The 12-second startup smoke ran under KDE Wayland with no runtime exception.
