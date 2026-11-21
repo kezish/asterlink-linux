@@ -71,3 +71,14 @@ Minimum separate outcome fields:
 - live_parser: passed/failed/not_checked
 - live_search: passed/failed/not_checked
 - full_download: passed/failed/not_checked
+
+## Current status
+
+See docs/VALIDATION.md for exact command outcomes, expected upstream
+plaintext-cache test inconsistency, and live service limitations.
+The Linux bundle builds successfully with Flutter 3.41.9 and archive 4.4.0.
+Headless browser-based search sources use a backend fallback on Linux;
+full WebKitGTK search-source support remains incomplete.
+
+Local build output: build/linux/x64/release/bundle/ (not yet a Nix package).
+The bundle and its Gopeed helper need to be kept together.

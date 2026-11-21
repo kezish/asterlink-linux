@@ -21,10 +21,14 @@
 | Search source adapters | PASS | 8 tests |
 | Search engine suite | PARTIAL | 17 tests pass; 1 upstream baseline test fails |
 | Changed Dart file static analysis | PASS | 6 targeted files; no issues |
-| Flutter Linux GUI binary | NOT VERIFIED | build pending |
+| Flutter Linux GUI binary | PASS | Flutter 3.41.9; 86 MB bundle (x86_64 release) |
 | Linux headless browser search | FALLBACK | existing backend fallback, native WebKit search not yet wired |
 | Live anonymous Baidu download | NOT VERIFIED | no known public share test file used |
-| Live search | NOT VERIFIED | requires backend and source probes |
+| KDE Wayland GUI startup | PASS (smoke only) | remained running 12 s; terminated by timeout code 124 |
+| Remote search recommendation endpoint | REACHABLE | HTTP 200 |
+| Remote resource catalog endpoint | REACHABLE | HTTP 200 |
+| Remote public parser home | REACHABLE | HTTP 200 |
+| Live search | INCONCLUSIVE | anonymous generic keyword request timed out after 18s |
 
 ## Upstream baseline inconsistency
 
@@ -53,3 +57,24 @@ depend on remote backend availability.
 
 No GitHub remote owned by the user for this new project has been created.
 The local branch can be published when a new remote exists.
+
+## Build and launch on the existing NixOS session
+
+    nix develop
+    bash tool/test-linux-core.sh
+    nix develop .#full
+    bash tool/build-linux.sh
+
+For launching inside an existing graphical login shell:
+
+    export LD_LIBRARY_PATH="$PWD/build/linux/x64/release/bundle/lib:\${LD_LIBRARY_PATH:-}"
+    ./build/linux/x64/release/bundle/asterlink
+
+The 12-second startup smoke ran under KDE Wayland with no runtime exception.
+A GTK cursor theme warning was logged. It did not test actual UI clicks,
+public parsing, or live search. The bundle was not installed system-wide.
+
+The initial GUI compilation failed with image 4.11.0 referencing archive
+ZLibDecoder.decodeLazy, absent from the official archive 4.2.0 pin.
+Dedicated dependency commit pins archive 4.4.0 (the first version with
+decodeLazy) and adds libass for mpv pkg-config. The second GUI build passed.
