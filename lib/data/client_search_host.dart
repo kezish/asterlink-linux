@@ -181,9 +181,10 @@ class ClientSearchHost {
     }
     if (method == 'browser') {
       if (fetch != null) return null;
-      if (io.Platform.isIOS || io.Platform.isWindows) {
+      if (io.Platform.isIOS || io.Platform.isWindows || io.Platform.isLinux) {
         // Browser-dependent sources use the existing server fallback. This
-        // avoids iOS background WKWebViews and Windows WebView2 teardown races;
+        // avoids iOS WKWebView and Windows WebView2 teardown races;
+        // Linux browser-only sources need a separate WebKitGTK headless bridge;
         // ordinary HTTP sources still run locally.
         failedRequests++;
         DiagnosticLog.active?.record(
