@@ -23,6 +23,8 @@ lib/data/providers/baidu_public_password.dart, lib/data/cloud_repository.dart.
 ## Development
 
     nix develop
+    bash tool/test-linux-core.sh
+    nix develop .#full
     bash tool/build-linux.sh
 
 No NixOS global packages or service modifications required. Keep Gopeed alongside
