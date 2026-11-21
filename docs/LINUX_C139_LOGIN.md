@@ -36,3 +36,20 @@ See https://bugs.webkit.org/show_bug.cgi?id=324730 and
 https://bugs.webkit.org/show_bug.cgi?id=324551 for related WebKitGTK issues.
 Actual visible rendering of the provider login window requires interactive
 confirmation on the affected desktop.
+
+## GIO TLS runtime
+
+On dawn16 the WebKit window rendered TLS support is not available.
+The original full shell had only the dconf GIO module directory and
+selected GDummyTlsBackend. Adding the pinned glib-networking module
+yielded GTlsBackendGnutls and a default trust database; libsoup returned
+HTTP 200 from https://yun.139.com/w/.
+The full shell now explicitly adds that module and preserves other
+GIO directories. Certificate validation stays enabled. No global
+system change or rebuild of the existing application is required.
+
+Offline TLS self-check:
+    nix develop .#full --command bash tool/check-linux-tls.sh
+
+Launch:
+    nix develop .#full --command bash tool/run-linux.sh

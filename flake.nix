@@ -22,10 +22,13 @@
         inputsFrom = [ core ];
         buildInputs = with pkgs; [
           webkitgtk_4_1 mpv-unwrapped libass libGL libepoxy glib pango cairo gdk-pixbuf
+          glib-networking
         ];
         shellHook = ''
           export GOTOOLCHAIN=local
-          echo "AsterLink Linux full shell: WebKitGTK / libmpv"
+          # GIO discovers its TLS backend dynamically rather than via ELF linking.
+          export GIO_EXTRA_MODULES="${pkgs.glib-networking}/lib/gio/modules''${GIO_EXTRA_MODULES:+:$GIO_EXTRA_MODULES}"
+          echo "AsterLink Linux full shell: WebKitGTK / libmpv / GIO TLS"
         '';
       };
     };
