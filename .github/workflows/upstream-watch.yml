@@ -25,7 +25,7 @@ jobs:
           set -euo pipefail
           git remote add upstream https://github.com/z7786/wenxi.git || true
           git fetch upstream main --tags --quiet
-          latest="$(git tag -l 'v*' --sort=-version:refname | head -1)"
+          latest="$(git tag -l 'v[0-9]*' --sort=-version:refname | grep -v -- '-linux' | head -1)"
           if [[ -z "$latest" ]]; then
             echo "No upstream release tag found" >&2
             exit 1
@@ -39,7 +39,7 @@ jobs:
             echo "An open tracking issue already mentions $latest"
             exit 0
           fi
-          baseline="$(git describe --tags --abbrev=0 HEAD)"
+          baseline="$(git tag --merged HEAD -l 'v[0-9]*' --sort=-version:refname | grep -v -- '-linux' | head -1)"
           {
             echo "Upstream release: $latest"
             echo "Linux baseline: $baseline"

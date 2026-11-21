@@ -61,24 +61,3 @@ jobs:
           path: build/linux/x64/release/bundle/
           if-no-files-found: error
           retention-days: 7
-
-  upstream-watch:
-    if: github.event_name == 'workflow_dispatch'
-    runs-on: ubuntu-24.04
-    permissions:
-      contents: read
-    steps:
-      - uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
-      - name: Read upstream state without merging or publishing
-        run: |
-          git remote add upstream https://github.com/z7786/wenxi.git || true
-          git fetch upstream main --tags
-          echo '## Upstream update report' >> "$GITHUB_STEP_SUMMARY"
-          echo 'Upstream main:' >> "$GITHUB_STEP_SUMMARY"
-          git log -1 --oneline upstream/main >> "$GITHUB_STEP_SUMMARY"
-          echo 'Latest tags:' >> "$GITHUB_STEP_SUMMARY"
-          git tag -l 'v*' --sort=-version:refname | head -5 >> "$GITHUB_STEP_SUMMARY"
-          echo 'Changed parser/search files since baseline:' >> "$GITHUB_STEP_SUMMARY"
-          git diff --stat v2.3.5+235..upstream/main -- lib/data/parser_rules lib/data/providers lib/data/resource_search_api.dart lib/data/client_search_engine.dart lib/data/client_search_host.dart >> "$GITHUB_STEP_SUMMARY"
