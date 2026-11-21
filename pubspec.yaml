@@ -24,7 +24,7 @@ dependencies:
   re_highlight: 0.0.3
   enough_convert: 1.7.1
   crypto: 3.0.7
-  archive: 4.2.0
+  archive: 4.4.0
   pointycastle: 4.0.0
   asterlink_js:
     path: vendor_plugins/asterlink_js

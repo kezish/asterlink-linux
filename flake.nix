@@ -21,7 +21,7 @@
       devShells.x86_64-linux.full = pkgs.mkShell {
         inputsFrom = [ core ];
         buildInputs = with pkgs; [
-          webkitgtk_4_1 mpv-unwrapped libGL libepoxy glib pango cairo gdk-pixbuf
+          webkitgtk_4_1 mpv-unwrapped libass libGL libepoxy glib pango cairo gdk-pixbuf
         ];
         shellHook = ''
           export GOTOOLCHAIN=local
