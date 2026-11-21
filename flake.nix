@@ -6,20 +6,26 @@
     let
       system = "x86_64-linux";
       pkgs = import nixpkgs { inherit system; };
-      runtimeLibs = with pkgs; [
-        gtk3 webkitgtk_4_1 libsecret libappindicator-gtk3
-        mpv libGL libepoxy glib pango cairo gdk-pixbuf
-      ];
-    in {
-      devShells.x86_64-linux.default = pkgs.mkShell {
+      core = pkgs.mkShell {
         packages = with pkgs; [
-          flutter go cmake ninja pkg-config
-          clang gcc python3 git
+          flutter go cmake ninja pkg-config clang gcc python3 git
         ];
-        buildInputs = runtimeLibs;
+        buildInputs = with pkgs; [ gtk3 libsecret libappindicator-gtk3 ];
         shellHook = ''
           export GOTOOLCHAIN=local
-          echo "AsterLink Linux dev shell ready: Flutter / Go / GTK / QuickJS"
+          echo "AsterLink Linux core shell: Flutter / Go / GTK / QuickJS"
+        '';
+      };
+    in {
+      devShells.x86_64-linux.default = core;
+      devShells.x86_64-linux.full = pkgs.mkShell {
+        inputsFrom = [ core ];
+        buildInputs = with pkgs; [
+          webkitgtk_4_1 mpv-unwrapped libGL libepoxy glib pango cairo gdk-pixbuf
+        ];
+        shellHook = ''
+          export GOTOOLCHAIN=local
+          echo "AsterLink Linux full shell: WebKitGTK / libmpv"
         '';
       };
     };
