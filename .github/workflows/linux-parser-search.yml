@@ -1,0 +1,46 @@
+name: Linux parser and search regression
+on:
+  push:
+    branches: [linux/main, linux/develop]
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  parser-search:
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: '3.41.9'
+          channel: stable
+          cache: true
+      - name: Install native library build tools
+        run: sudo apt-get update && sudo apt-get install -y cmake pkg-config ninja-build libgtk-3-dev libsecret-1-dev libwebkit2gtk-4.1-dev
+      - name: Run offline parser and search tests
+        run: bash tool/test-linux-core.sh
+      - name: Check Git diff
+        run: git diff --exit-code -- pubspec.lock
+
+  upstream-watch:
+    if: github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Read upstream state without merging or publishing
+        run: |
+          git remote add upstream https://github.com/z7786/wenxi.git || true
+          git fetch upstream main --tags
+          echo '## Upstream update report' >> "$GITHUB_STEP_SUMMARY"
+          echo 'Upstream main:' >> "$GITHUB_STEP_SUMMARY"
+          git log -1 --oneline upstream/main >> "$GITHUB_STEP_SUMMARY"
+          echo 'Latest tags:' >> "$GITHUB_STEP_SUMMARY"
+          git tag -l 'v*' --sort=-version:refname | head -5 >> "$GITHUB_STEP_SUMMARY"
+          echo 'Changed parser/search files since baseline:' >> "$GITHUB_STEP_SUMMARY"
+          git diff --stat v2.3.5+235..upstream/main -- lib/data/parser_rules lib/data/providers lib/data/resource_search_api.dart lib/data/client_search_engine.dart lib/data/client_search_host.dart >> "$GITHUB_STEP_SUMMARY"
