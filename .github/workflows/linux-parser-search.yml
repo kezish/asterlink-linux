@@ -28,6 +28,12 @@ jobs:
         run: bash tool/test-linux-core.sh
       - name: Check Git diff
         run: git diff --exit-code -- pubspec.lock
+      - name: Track known upstream plaintext state-cache assertion
+        continue-on-error: true
+        run: |
+          ASTERLINK_JS_LIBRARY="$PWD/build/quickjs-native/libasterlink_js.so" \\
+            flutter test test/client_search_test.dart \\
+            --plain-name 'encrypted disk cache survives process restart with all networks offline'
 
   upstream-watch:
     if: github.event_name == 'workflow_dispatch'

@@ -44,7 +44,7 @@ while IFS= read -r line; do
 done < "$defines_file"
 
 echo "== building the Flutter Linux bundle"
-"$FLUTTER" pub get
+"$FLUTTER" pub get --enforce-lockfile
 "$FLUTTER" build linux --release --no-pub ${DEFINES[@]+"${DEFINES[@]}"}
 
 echo "== adding the helper to the bundle"
