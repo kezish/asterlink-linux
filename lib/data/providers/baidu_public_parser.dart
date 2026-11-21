@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:convert';
 import '../../core/json.dart';
+import '../../diagnostics/app_log.dart';
 import '../../domain/baidu_share_route.dart';
 import '../../domain/models.dart';
 import '../../domain/public_share_route.dart';
@@ -69,6 +70,16 @@ class BaiduPublicParser {
         operation,
         body,
         password.shared.value,
+      );
+      DiagnosticLog.event(
+        'parser.builtin_response',
+        fields: {
+          'siteId': 'mf_dg22',
+          'stage': operation,
+          'status': result.status,
+          'code': response?.integer('code'),
+          'manual': password.manual,
+        },
       );
       // Live password failures use HTTP 400 + code 20016. This is distinct
       // from a Baidu share's extraction code or the personal account login.

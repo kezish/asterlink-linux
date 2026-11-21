@@ -31,7 +31,34 @@ class ParserSitePicker extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final hub = services.parserRules;
-    if (!hub.configured) return const SizedBox.shrink();
+    if (!hub.configured) {
+      if (platform != CloudPlatform.baidu || !hub.builtinPasswordAvailable) {
+        return const SizedBox.shrink();
+      }
+      return Wrap(
+        crossAxisAlignment: WrapCrossAlignment.center,
+        children: [
+          const Text('内置公益通道（手动密码）'),
+          TextButton.icon(
+            key: const ValueKey('parser-password-button'),
+            icon: const Icon(Icons.key_outlined, size: 17),
+            label: const Text('解析密码'),
+            onPressed: !enabled
+                ? null
+                : () async {
+                    final grant = await showParserPasswordDialog(
+                      context,
+                      hub,
+                      'mf_dg22',
+                    );
+                    if (grant != null && context.mounted) {
+                      onPasswordReady?.call(grant);
+                    }
+                  },
+          ),
+        ],
+      );
+    }
     return ListenableBuilder(
       listenable: hub,
       builder: (context, _) {
@@ -168,6 +195,13 @@ Future<String?> showParserPasswordDialog(
   Future<String> Function(String command)? resolveUcPassword,
 }) async {
   final site = hub.sites.where((s) => s.id == siteId).firstOrNull;
+  if (site == null && siteId == 'mf_dg22' && hub.builtinPasswordAvailable) {
+    return showDialog<String>(
+      context: context,
+      barrierDismissible: false,
+      builder: (_) => _BuiltinParserPasswordDialog(hub: hub),
+    );
+  }
   if (site == null) {
     message(context, '当前通道尚未连接共享密码服务，请稍后重试');
     return null;
@@ -181,6 +215,110 @@ Future<String?> showParserPasswordDialog(
       site: site,
       resolveUcPassword: resolveUcPassword,
     ),
+  );
+}
+
+// Deliberately limited to the existing built-in parser with no configured Hub.
+// The original parser still checks the password on the actual list request.
+class _BuiltinParserPasswordDialog extends StatefulWidget {
+  const _BuiltinParserPasswordDialog({required this.hub});
+  final ParserRuleHub hub;
+
+  @override
+  State<_BuiltinParserPasswordDialog> createState() =>
+      _BuiltinParserPasswordDialogState();
+}
+
+class _BuiltinParserPasswordDialogState
+    extends State<_BuiltinParserPasswordDialog> {
+  final input = TextEditingController();
+  bool busy = false;
+  String error = '';
+
+  @override
+  void dispose() {
+    input.dispose();
+    super.dispose();
+  }
+
+  Future<void> _submit() async {
+    setState(() {
+      busy = true;
+      error = '';
+    });
+    try {
+      final grant = await widget.hub.grantBuiltinPassword(input.text.trim());
+      if (mounted) Navigator.pop(context, grant);
+    } catch (e) {
+      if (mounted) setState(() => error = errorText(e));
+    } finally {
+      if (mounted) setState(() => busy = false);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) => AlertDialog(
+    title: const Text('百度公益解析 · 手动密码'),
+    content: SizedBox(
+      width: 440,
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Text(
+            '本构建未配置共享密码服务。请按公益解析站的说明获得当前有效解析密码。它与百度提取码不同，仅保存在本次运行的内存中，由原站验证。',
+          ),
+          TextButton.icon(
+            icon: const Icon(Icons.open_in_new),
+            label: const Text('打开公益解析原站'),
+            onPressed: () async {
+              try {
+                final ok = await launchUrl(
+                  Uri.parse('https://mf.dg22.top/user/parse'),
+                  mode: LaunchMode.externalApplication,
+                );
+                if (!ok && mounted) {
+                  setState(
+                    () => error = '请在浏览器打开 https://mf.dg22.top/user/parse',
+                  );
+                }
+              } catch (_) {
+                if (mounted) {
+                  setState(
+                    () => error = '请在浏览器打开 https://mf.dg22.top/user/parse',
+                  );
+                }
+              }
+            },
+          ),
+          TextField(
+            key: const ValueKey('builtin-parser-password-input'),
+            controller: input,
+            obscureText: true,
+            autofocus: true,
+            decoration: InputDecoration(
+              labelText: '当前解析密码',
+              errorText: error.isEmpty ? null : error,
+            ),
+            onChanged: (_) => setState(() {}),
+            onSubmitted: (_) {
+              if (!busy && input.text.trim().isNotEmpty) _submit();
+            },
+          ),
+        ],
+      ),
+    ),
+    actions: [
+      TextButton(
+        onPressed: busy ? null : () => Navigator.pop(context),
+        child: const Text('取消'),
+      ),
+      FilledButton(
+        key: const ValueKey('builtin-parser-password-submit'),
+        onPressed: busy || input.text.trim().isEmpty ? null : _submit,
+        child: const Text('继续解析'),
+      ),
+    ],
   );
 }
 

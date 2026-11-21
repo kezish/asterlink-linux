@@ -358,6 +358,9 @@ class ParserRuleHub extends ChangeNotifier {
   final _pendingWork = <Future<dynamic>>{};
   final _passwordGate = AsyncGate();
   final _grantGate = AsyncGate();
+  // Community builds without Hub credentials can use a password obtained
+  // from the original public parser. Keep it in memory, never in StateStore.
+  final _builtinPasswordGrants = <String, ParserSharedPassword>{};
   final _deviceGate = AsyncGate();
   final _bundles = <String, ParserBundle>{};
   final _passwordReads = <String, Future<ParserSharedPassword>>{};
@@ -479,6 +482,35 @@ class ParserRuleHub extends ChangeNotifier {
   ParserSite? currentSite(String id) =>
       sites.where((site) => site.id == id).firstOrNull;
 
+  bool get builtinPasswordAvailable =>
+      !_closed &&
+      !configured &&
+      !hasManifest &&
+      publicParsingAllowed(CloudPlatform.baidu);
+
+  Future<String> grantBuiltinPassword(String value) async {
+    require(builtinPasswordAvailable, '当前内置公益通道不可用');
+    require(ParserPasswordWebResult.validPassword(value), '请填写完整的当前解析密码');
+    final now = clock().toUtc();
+    _builtinPasswordGrants.removeWhere((_, p) => !p.expiresAt.isAfter(now));
+    while (_builtinPasswordGrants.length >= 32) {
+      _builtinPasswordGrants.remove(_builtinPasswordGrants.keys.first);
+    }
+    final beijing = now.add(const Duration(hours: 8));
+    final midnight = DateTime.utc(
+      beijing.year,
+      beijing.month,
+      beijing.day + 1,
+    ).subtract(const Duration(hours: 8));
+    final token = _nonce(24);
+    _builtinPasswordGrants[token] = ParserSharedPassword(value, -1, midnight);
+    DiagnosticLog.event(
+      'parser.builtin_password',
+      fields: {'stage': 'manual_input', 'siteId': 'mf_dg22'},
+    );
+    return token;
+  }
+
   // Approval belongs to one share. A new parse never reads these receipts
   // without the opaque token returned by its password dialog.
   Future<String> grantPassword(String id) => _grantGate.run(() async {
@@ -564,6 +596,14 @@ class ParserRuleHub extends ChangeNotifier {
     if (token == null || !RegExp(r'^[a-f0-9]{48}$').hasMatch(token)) {
       return null;
     }
+    final builtin = _builtinPasswordGrants[token];
+    if (builtin != null) {
+      return id == 'mf_dg22' &&
+              builtinPasswordAvailable &&
+              builtin.expiresAt.isAfter(clock())
+          ? builtin
+          : null;
+    }
     final data = asJson(_passwordGrants()[token]);
     if (data.str('siteId') != id ||
         data.str('value').isEmpty ||
@@ -586,6 +626,7 @@ class ParserRuleHub extends ChangeNotifier {
 
   Future<void> revokePasswordGrant(String? token) => _grantGate.run(() async {
     if (token == null || token.isEmpty) return;
+    _builtinPasswordGrants.remove(token);
     final grants = _passwordGrants();
     if (grants.remove(token) != null) {
       await store.putSecret('$_prefix.passwordGrants', jsonEncode(grants));
@@ -1290,7 +1331,9 @@ class ParserRuleHub extends ChangeNotifier {
       } catch (_) {}
     }
     await _passwordGate.run(() async {});
-    await _grantGate.run(() async {});
+    await _grantGate.run(() async {
+      _builtinPasswordGrants.clear();
+    });
     await _deviceGate.run(() async {});
     dispose();
   }
