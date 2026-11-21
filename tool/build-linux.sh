@@ -42,6 +42,16 @@ DEFINES=()
 while IFS= read -r line; do
   [ -n "$line" ] && DEFINES+=("$line")
 done < "$defines_file"
+# Match upstream's optional client define files. Only use configuration
+# supplied by an authorized operator; never print contents or invent keys.
+for name in baidu-api.defines.json cloud-command.defines.json parser-hub.defines.json; do
+  if [[ -f "$PROJECT/.local/$name" ]]; then
+    DEFINES+=("--dart-define-from-file=$PROJECT/.local/$name")
+    echo "Using local client configuration: $name"
+  else
+    echo "Optional client configuration missing: $name"
+  fi
+done
 
 echo "== building the Flutter Linux bundle"
 "$FLUTTER" pub get --enforce-lockfile
