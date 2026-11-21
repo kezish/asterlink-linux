@@ -3,7 +3,6 @@
 #
 
 list(APPEND FLUTTER_PLUGIN_LIST
-  asterlink_webview_linux
   file_selector_linux
   flutter_secure_storage_linux
   media_kit_libs_linux
@@ -15,6 +14,7 @@ list(APPEND FLUTTER_PLUGIN_LIST
 )
 
 list(APPEND FLUTTER_FFI_PLUGIN_LIST
+  asterlink_js
   jni
 )
 
