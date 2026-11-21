@@ -7,6 +7,7 @@ import 'android_download_file.dart';
 import 'native_engine.dart';
 import 'windows_storage.dart';
 import 'apple_storage.dart';
+import 'posix_storage.dart';
 
 String safeFileName(String raw) {
   var name = raw
@@ -283,6 +284,13 @@ class PlatformFileAccess implements FileAccess {
       if (apple != null) {
         return (StorageVolume(apple.id, resolved), apple.hardLinks);
       }
+      if (Platform.isLinux) {
+        final device = PosixStorage.device(resolved);
+        return (
+          StorageVolume(device == null ? resolved : 'linux-device:$device', resolved),
+          device != null && PosixStorage.supportsHardLinks(resolved),
+        );
+      }
       final windows = WindowsStorage.volume(resolved);
       return (
         StorageVolume(
@@ -438,6 +446,8 @@ class PlatformFileAccess implements FileAccess {
               require(free < 0 || free >= total, '保存需要额外空间，请释放空间或更换目录');
               break;
             }
+          } else if (Platform.isLinux) {
+            PosixStorage.createHardLink(source.path, file.path);
           } else {
             WindowsStorage.createHardLink(source.path, file.path);
           }

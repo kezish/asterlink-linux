@@ -85,7 +85,7 @@ class DesktopGopeedTransport extends NativeTransport {
   Future<Process> _start() => _starting.run(() async {
     require(!_disposed, '下载组件已经关闭');
     if (_process != null) return _process!;
-    final system = Platform.isMacOS ? 'macOS' : 'Windows';
+    final system = Platform.isLinux ? 'Linux' : (Platform.isMacOS ? 'macOS' : 'Windows');
     require(await File(executable).exists(), '缺少 $system 下载组件，请安装完整版本');
     final Process process;
     try {

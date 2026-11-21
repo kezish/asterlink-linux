@@ -608,7 +608,7 @@ class AppServices extends ChangeNotifier {
       );
       transport = IOSGopeedTransport();
     } else {
-      require(isDesktopPlatform, '当前版本支持 Android、Windows 和 macOS');
+      require(isDesktopPlatform, '当前版本支持 Android、iOS、Windows、macOS 和 Linux');
       data = Directory(
         p.join((await getApplicationSupportDirectory()).path, 'AsterLink'),
       );
