@@ -491,6 +491,13 @@ Session* CreateSession(const std::string& id, const std::string& url,
     return nullptr;
   }
 
+  // An unset GDK screen DPI (-1) can become a negative CSS viewport
+  // in WebKitGTK. Keep a valid configured DPI; use 96 only when unset.
+  GdkScreen* screen = gdk_screen_get_default();
+  if (screen != nullptr && gdk_screen_get_resolution(screen) <= 0) {
+    gdk_screen_set_resolution(screen, 96.0);
+    g_message("AsterLink WebKit: applied 96 DPI fallback");
+  }
   session->view = webkit_web_view_new_with_context(session->context);
   ApplySettings(session.get(), args);
   ApplyInitScripts(session.get(), Arg(args, "initScripts"));
