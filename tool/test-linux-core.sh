@@ -30,6 +30,7 @@ flutter test test/baidu_public_parser_test.dart
 flutter test test/baidu_builtin_password_test.dart
 flutter test test/mobile_password_archive_test.dart
 flutter test test/mobile_password_guide_test.dart
+flutter test test/linux_c139_login_widget_test.dart
 flutter test test/baidu_public_password_test.dart
 # Upstream v2.3.5 test "encrypted disk cache ..." expects encrypted local
 # state, while upstream StateStore writes plaintext state-v2. Quarantine this

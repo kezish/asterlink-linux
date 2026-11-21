@@ -51,6 +51,7 @@ constexpr int kDefaultWidth = 1120;
 constexpr int kDefaultHeight = 780;
 
 struct Session {
+  ~Session() { if (context != nullptr) g_object_unref(context); }
   std::string id;
   GtkWidget* window = nullptr;
   GtkWidget* view = nullptr;
@@ -434,7 +435,7 @@ void ApplySettings(Session* session, FlValue* args) {
   webkit_settings_set_enable_html5_local_storage(settings, TRUE);
   webkit_settings_set_enable_html5_database(settings, TRUE);
   webkit_settings_set_javascript_can_open_windows_automatically(settings, TRUE);
-  webkit_settings_set_javascript_can_access_clipboard(settings, TRUE);
+  webkit_settings_set_javascript_can_access_clipboard(settings, FALSE);
   webkit_settings_set_allow_universal_access_from_file_urls(settings, FALSE);
   webkit_settings_set_enable_developer_extras(settings, FALSE);
   webkit_web_view_set_settings(WEBKIT_WEB_VIEW(session->view), settings);
@@ -474,10 +475,18 @@ Session* CreateSession(const std::string& id, const std::string& url,
   session->arbitrate = ArgBool(args, "arbitrateNavigation", true);
   const bool ephemeral = ArgBool(args, "ephemeral", false);
 
-  session->context =
-      opener != nullptr
-          ? opener->context
-          : ContextFor(ephemeral, ArgString(args, "dataDirectory"), error);
+  // Each top-level ephemeral login owns its own isolated cookie jar.
+  // Popups share only the opener's context, with independent references.
+  if (opener != nullptr) {
+    session->context = WEBKIT_WEB_CONTEXT(g_object_ref(opener->context));
+  } else if (ephemeral) {
+    session->context = webkit_web_context_new_ephemeral();
+  } else {
+    auto* context = ContextFor(false, ArgString(args, "dataDirectory"), error);
+    if (context != nullptr) {
+      session->context = WEBKIT_WEB_CONTEXT(g_object_ref(context));
+    }
+  }
   if (session->context == nullptr) {
     return nullptr;
   }
@@ -561,6 +570,7 @@ WebKitCookieManager* CookieManagerFor(FlValue* args) {
       return webkit_web_context_get_cookie_manager(it->second->context);
     }
   }
+  if (!id.empty()) return nullptr;
   if (ArgBool(args, "ephemeral", false) &&
       g_plugin->ephemeral_context != nullptr) {
     return webkit_web_context_get_cookie_manager(g_plugin->ephemeral_context);
@@ -576,6 +586,7 @@ WebKitCookieManager* CookieManagerFor(FlValue* args) {
 WebKitCookieManager* CookieManagerForOrCreate(FlValue* args) {
   WebKitCookieManager* manager = CookieManagerFor(args);
   if (manager != nullptr) return manager;
+  if (!ArgString(args, "id").empty()) return nullptr;
   std::string error;
   WebKitWebContext* context = ContextFor(false, std::string(), &error);
   if (context == nullptr) return nullptr;

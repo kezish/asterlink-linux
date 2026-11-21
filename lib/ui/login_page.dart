@@ -33,6 +33,7 @@ import 'quark_login_page.dart';
 import 'baidu_login_panel.dart';
 import 'wopan_sms_login_page.dart';
 import 'login_webview.dart';
+import 'linux_c139_login_page.dart';
 import 'uc_tv_authorization_page.dart';
 import 'cloud_accounts_page.dart';
 import 'account_cookie.dart';
@@ -168,6 +169,14 @@ class _LoginEntryPage extends StatelessWidget {
         final owner = entry.owner;
         return switch (platform) {
           CloudPlatform.github => GitHubLoginPage(services, accountId: owner),
+          CloudPlatform.c139
+              when Platform.isLinux && services.platformFeatures =>
+            LinuxC139LoginPage(
+              services,
+              accountId: owner,
+              manualPage: (_) =>
+                  ManualLoginPage(services, platform, accountId: owner),
+            ),
           CloudPlatform.xunlei ||
           CloudPlatform.ctfile ||
           CloudPlatform.feijipan ||
