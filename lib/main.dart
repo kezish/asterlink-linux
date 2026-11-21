@@ -14,6 +14,8 @@ import 'diagnostics/diagnostic_runtime.dart';
 import 'ui/startup_failure_page.dart';
 export 'ui/startup_failure_page.dart';
 import 'domain/downloads.dart';
+import 'domain/models.dart' show CloudPlatform;
+import 'ui/login_page.dart' show openLogin;
 import 'ui/app_navigation.dart';
 import 'ui/remote_control_dialogs.dart';
 import 'ui/app_popup_menu.dart';
@@ -53,8 +55,12 @@ import 'platform/windows_pip.dart';
 import 'platform/windows_window_theme.dart';
 import 'platform/desktop_platform.dart';
 
+bool _openLinuxC139AtStartup = false;
+
 void main(List<String> arguments) {
   WidgetsFlutterBinding.ensureInitialized();
+  _openLinuxC139AtStartup =
+      Platform.isLinux && arguments.contains('--linux-c139-login');
   if (arguments.length == 2 && arguments.first == independentPlayerArgument) {
     runApp(IndependentPlayerApp(endpoint: arguments[1]));
     return;
@@ -368,6 +374,10 @@ class _MainShellState extends State<MainShell>
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted) return;
       DiagnosticLog.event('app.main_frame');
+      if (_openLinuxC139AtStartup) {
+        _openLinuxC139AtStartup = false;
+        unawaited(openLogin(context, widget.services, CloudPlatform.c139));
+      }
       final state = WidgetsBinding.instance.lifecycleState;
       widget.services.clipboard.setForeground(
         state == null || state == AppLifecycleState.resumed,

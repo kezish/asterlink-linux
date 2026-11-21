@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:convert';
 
 import 'package:asterlink_webview_linux/asterlink_webview_linux.dart';
 import 'package:flutter/material.dart';
@@ -83,7 +84,9 @@ class _LinuxC139LoginPageState extends State<LinuxC139LoginPage> {
       session = view;
       events = view.events.listen((event) {
         if (!mounted || completed || !identical(session, view)) return;
-        if (event.type == LinuxWebViewEvent.closed) {
+        if (event.type == LinuxWebViewEvent.loadFinished) {
+          unawaited(_probeLayout(view));
+        } else if (event.type == LinuxWebViewEvent.closed) {
           setState(() => status = '网页已关闭，请重新打开并在关闭前检测登录。');
           unawaited(_close());
         } else if (event.type == LinuxWebViewEvent.loadFailed ||
@@ -107,6 +110,53 @@ class _LinuxC139LoginPageState extends State<LinuxC139LoginPage> {
       if (mounted) setState(() => status = 'Linux 网页窗口初始化失败，请重试或使用手动登录。');
     } finally {
       if (mounted) setState(() => opening = false);
+    }
+  }
+
+  // Read geometry only: never collect input values, cookies or page text.
+  Future<void> _probeLayout(LinuxWebViewSession view) async {
+    for (var attempt = 0; attempt < 5; attempt++) {
+      await Future<void>.delayed(const Duration(seconds: 2));
+      if (!mounted || !identical(session, view) || completed) return;
+      try {
+        final result = await view
+            .evaluate('''
+          JSON.stringify({
+            width: window.innerWidth, height: window.innerHeight,
+            visibleInputs: Array.from(document.querySelectorAll('input')).filter(e => {
+              const r = e.getBoundingClientRect();
+              const cs = getComputedStyle(e);
+              return r.width > 0 && r.height > 0 && r.left < innerWidth &&
+                r.right > 0 && r.top < innerHeight && r.bottom > 0 &&
+                cs.visibility !== 'hidden' && cs.display !== 'none' &&
+                e.type !== 'hidden';
+            }).length
+          })
+        ''')
+            .timeout(const Duration(seconds: 4));
+        final layout = jsonDecode(result as String) as Map<String, dynamic>;
+        final w = layout['width'] as num;
+        final h = layout['height'] as num;
+        final count = layout['visibleInputs'] as num;
+        if (!mounted || !identical(session, view) || completed) return;
+        diagnostics.record(
+          'native_layout',
+          stage: 'renderer',
+          fields: {'width': w, 'height': h, 'visibleInputs': count},
+        );
+        if (w > 0 && h > 0 && count > 0) {
+          debugPrint(
+            'ASTERLINK_C139_LAYOUT_READY width=$w height=$h visibleInputs=$count',
+          );
+          return;
+        }
+        if (w <= 0 || h <= 0) {
+          setState(() => status = '网页视口异常，请查看 Linux 渲染诊断。');
+          return;
+        }
+      } catch (_) {
+        return;
+      }
     }
   }
 
