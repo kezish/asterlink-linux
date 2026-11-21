@@ -53,3 +53,22 @@ Offline TLS self-check:
 
 Launch:
     nix develop .#full --command bash tool/run-linux.sh
+
+## Native login viewport regression
+
+After fixing TLS, the provider loaded but its login UI was outside the
+viewport. A same-runtime WebKit probe on dawn16 measured GDK screen DPI
+-1, xft-dpi 122880, innerWidth -105600, innerHeight -74880, zero visible
+inputs. Setting screen DPI to 96 only when GDK reports an invalid value
+restored 1100 x 780 and two visible inputs in the standalone probe.
+The native plugin now performs this fallback before constructing WebKit.
+The Nix full shell also provides GStreamer base plugins; gst-inspect
+appsink succeeds. No global desktop scaling or driver changes.
+
+The rebuilt actual AsterLink client, launched with
+    nix develop .#full --command bash tool/run-linux.sh --linux-c139-login
+reported ASTERLINK_C139_LAYOUT_READY width=1120 height=780 visibleInputs=2
+in the real unauthenticated C139 login window. No TLS, DMA-BUF or appsink
+errors in that run; a GTK cursor theme warning remains. The readiness
+probe only inspects dimensions and counts, not input contents or cookies.
+Live account verification still requires the user's own login.
