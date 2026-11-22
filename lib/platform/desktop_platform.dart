@@ -2,7 +2,12 @@ import 'dart:io';
 import 'package:path/path.dart' as p;
 import '../core/json.dart';
 
-bool get isDesktopPlatform => Platform.isWindows || Platform.isMacOS || Platform.isLinux;
+bool get isDesktopPlatform =>
+    Platform.isWindows || Platform.isMacOS || Platform.isLinux;
+
+// The app-specific native foreground channel exists only on these platforms.
+bool supportsNativeTransferForeground(String platform) =>
+    const {'android', 'windows', 'macos'}.contains(platform);
 
 String desktopDownloadExecutable(String executable, String platform) {
   require({'windows', 'macos', 'linux'}.contains(platform), '当前系统不支持桌面下载组件');

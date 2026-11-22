@@ -636,7 +636,10 @@ class _MainShellState extends State<MainShell>
         await trayManager.setIcon(
           Platform.isMacOS ? 'assets/icons/app.png' : 'assets/icons/app.ico',
         );
-        await trayManager.setToolTip('文析助手 · 单击打开，右键菜单');
+        // tray_manager has no setToolTip implementation on Linux.
+        if (!Platform.isLinux) {
+          await trayManager.setToolTip('文析助手 · 单击打开，右键菜单');
+        }
         await trayManager.setContextMenu(
           Menu(
             items: [
@@ -760,18 +763,29 @@ class _MainShellState extends State<MainShell>
       }
       _exiting = true;
       await _windowVisibility.run(() async {
-        await widget.services.close();
-        if (trayReady) {
-          await trayManager.destroy();
-          trayReady = false;
+        // Once services begin closing, they cannot be safely reused.
+        // A cleanup failure must not leave an interactive half-closed app.
+        try {
+          await widget.services.close();
+        } catch (error, stack) {
+          DiagnosticLog.error('app.services_close_failed', error, stack);
+        } finally {
+          try {
+            if (trayReady) await trayManager.destroy();
+          } catch (error, stack) {
+            DiagnosticLog.error('app.tray_close_failed', error, stack);
+          } finally {
+            trayReady = false;
+            DiagnosticRuntime.stop();
+            await windowManager.destroy();
+          }
         }
-        DiagnosticRuntime.stop();
-        await windowManager.destroy();
       });
     } catch (e, stack) {
-      _exiting = false;
       DiagnosticLog.error('app.close_failed', e, stack);
-      if (mounted) message(context, errorText(e));
+      if (mounted) {
+        message(context, _exiting ? '退出未完成，请关闭进程后重新启动应用' : errorText(e));
+      }
     } finally {
       closing = false;
     }

@@ -25,6 +25,8 @@ cmake --build build/quickjs-native -j 2
 export ASTERLINK_JS_LIBRARY="$(pwd)/build/quickjs-native/libasterlink_js.so"
 test -s "$ASTERLINK_JS_LIBRARY"
 flutter test test/linux_desktop_platform_test.dart
+flutter test test/transfer_activity_test.dart test/download_keepalive_test.dart
+ASTERLINK_GOPEED_TEST_EXECUTABLE="$PWD/native/bin/asterlink_gopeed" flutter test test/linux_transfer_runtime_test.dart
 flutter test test/link_parser_test.dart
 flutter test test/baidu_public_parser_test.dart
 flutter test test/baidu_builtin_password_test.dart

@@ -82,3 +82,21 @@ full WebKitGTK search-source support remains incomplete.
 
 Local build output: build/linux/x64/release/bundle/ (not yet a Nix package).
 The bundle and its Gopeed helper need to be kept together.
+
+## Linux download / shutdown regression
+
+The running application could reject downloads with `应用正在退出` after a
+failed close. Diagnostics showed app.close_failed: MissingPluginException
+for the native foreground channel during DownloadManager.close/pauseAll.
+The preceding Linux tray initialization had also failed at unsupported
+setToolTip. Linux is a desktop platform but does not implement the native
+transfer foreground bridge available on Android, Windows and macOS.
+Restrict that bridge to supported platforms, skip the unsupported tray API,
+and do not return to a usable-looking UI after irreversible service closure.
+This does not disable normal Linux Gopeed transfers.
+
+Verified on dawn16: 68 selected download/keepalive/feedback tests pass;
+additional Linux runtime test uses AppServices(platformFeatures: true),
+real DesktopGopeedTransport, loopback HTTP server, real PlatformFileAccess,
+32 KiB exact byte comparison, pause and full AppServices.close. Passed.
+The test does not read or modify the user's cloud account state.

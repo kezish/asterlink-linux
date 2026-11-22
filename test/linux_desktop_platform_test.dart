@@ -2,6 +2,19 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:asterlink/platform/desktop_platform.dart';
 
 void main() {
+  test(
+    'desktop platform and native foreground capabilities are independent',
+    () {
+      for (final name in ['linux', 'ios', 'unknown']) {
+        expect(supportsNativeTransferForeground(name), isFalse);
+      }
+      for (final name in ['android', 'windows', 'macos']) {
+        expect(supportsNativeTransferForeground(name), isTrue);
+      }
+      expect(isDesktopPlatform, isTrue);
+    },
+  );
+
   test('linux executable is colocated with the desktop bundle', () {
     expect(
       desktopDownloadExecutable('/opt/asterlink/asterlink', 'linux'),

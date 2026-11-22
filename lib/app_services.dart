@@ -287,7 +287,8 @@ class AppServices extends ChangeNotifier {
     );
     transfer = transferHttp ?? TransferHttp();
     final backgroundTransfers =
-        platformFeatures && (Platform.isAndroid || isDesktopPlatform);
+        platformFeatures &&
+        supportsNativeTransferForeground(Platform.operatingSystem);
     lan =
         lanService ??
         LanService(
